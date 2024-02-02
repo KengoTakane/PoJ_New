@@ -40,7 +40,7 @@
 /* typedef */
 /*============================================================================*/
 typedef struct _HMC6343{
-	int32_t		Stat;
+	int32_t		Stat;	/* 通常状態　0:正常，1:異常 */
 	uint32_t	Ax;
 	uint32_t	Ay;
 	uint32_t	Az;
@@ -54,7 +54,7 @@ typedef struct _HMC6343{
 } HMC6343;
 
 typedef struct _BME680{
-	int32_t		Stat;
+	int32_t		Stat;	/* 通常状態　0:正常，1:異常 */
     uint32_t	Press;
 	int32_t		Temp;
 	uint32_t	Hum;
