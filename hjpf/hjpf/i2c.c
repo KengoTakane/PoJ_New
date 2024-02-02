@@ -103,9 +103,10 @@ static void i2c_close(int fd)
  * @note    I2Cを書き込む
  * @param   引数  : 
  *				int			fd			ファイルディスクリプタ
- *				uint8_t		dev_sdr		アドレス
- *				void 		*buf		書き込みデータ
- *				uint32_t 	buf_length	書き込みサイズ
+ *				uint8_t		dev_sdr		デバイス(スレーブ)アドレス
+ *				uint8_t		reg_sdr		レジスタアドレス
+ *				void 		*buf		書き込むデータの格納場所を指すポインタ.
+ *				uint32_t 	buf_length	書き込むデータの長さ.
  * @return  戻り値: 
  * @date    2023/12/01 [0.0.1] 新規作成
  */
@@ -117,12 +118,12 @@ static int i2c_write(int fd, uint8_t dev_adr, uint8_t reg_addr, void *buf, uint3
 	unsigned char	buffer[1024];
 	int32_t	ret;
 	
-	buffer[0] = reg_addr;
+	buffer[0] = reg_addr;	/* 1バイト目にレジスタアドレスをセット. */
 	memcpy(&buffer[1], buf, buf_length);
 	/* メッセージ作成 */
 	msg.addr = dev_adr;
 	msg.flags = 0;
-	msg.len = buf_length + 1;
+	msg.len = buf_length + 1;	/* control byte + data bytes */
 	msg.buf = buffer;
 	
 	/* 送信 */
@@ -141,16 +142,17 @@ static int i2c_write(int fd, uint8_t dev_adr, uint8_t reg_addr, void *buf, uint3
  * @brief   I2C読み込み
  * @note    I2Cを読み込む
  *				int			fd			ファイルディスクリプタ
- *				uint8_t		dev_sdr		アドレス
+ *				uint8_t		dev_sdr		デバイス(スレーブ)アドレス
+ *				uint8_t		reg_sdr		レジスタアドレス(読み込みたいデータの格納先)
  *				void 		*buf		読み込みデータ
- *				uint32_t 	buf_length	読み込みサイズ
+ *				uint32_t 	buf_length	読み込みサイズ[bytes]
  * @return  戻り値: 
  * @date    2023/12/01 [0.0.1] 新規作成
  */
 /*============================================================================*/
 static int i2c_read(int fd, uint8_t dev_adr, uint8_t reg_addr, void *buf, uint32_t buf_length)
 {
-	struct i2c_msg	msg[2];
+	struct i2c_msg	msg[2];	/* 1つ目にレジスタアドレスをセット，2つ目に読み込むサイズとデータの格納場所を指定 */
 	struct i2c_rdwr_ioctl_data	packets;
 	int32_t	ret;
 	
@@ -179,7 +181,7 @@ static int i2c_read(int fd, uint8_t dev_adr, uint8_t reg_addr, void *buf, uint32
 /*
  * @brief   HMC6343読み込み
  * @note    HMC6343情報を読み込む
- * @param   引数  : void*
+ * @param   引数  : int	fd I2Cのファイルディスクリプタ
  * @return  戻り値: void*
  * @date    2023/11/30 [0.0.1] 新規作成
  */
@@ -315,7 +317,7 @@ static int bme_init(int fd)
 	gas_sensor.amb_temp = 25;
 	rslt = bme680_init(&gas_sensor);
 
-	/* Set the temperature, pressure and humidity settings */
+	/* Set the temperature, pressure and humidity settings. os = over sampling   */
 	gas_sensor.tph_sett.os_hum = BME680_OS_2X;
 	gas_sensor.tph_sett.os_pres = BME680_OS_4X;
 	gas_sensor.tph_sett.os_temp = BME680_OS_8X;
@@ -388,14 +390,14 @@ void* i2c_main(void* arg)
 
 	com_timer_init(ENUM_TIMER_I2C, i2cBME_HMC->period);
 
-	//HMC共有メモリオープン
+	//HMC(磁気センサ)共有メモリオープン
 	id_hmc = com_shmem_open(DEF_HMC_SHMEM_NAME, SHM_KIND_PLATFORM);
 	if(id_hmc == DEF_COM_SHMEM_FALSE){
 		dprintf(WARN, "com_shmem_open error. name = %s\n", DEF_HMC_SHMEM_NAME);
 		pthread_exit(NULL);
 	}
 
-	//BME共有メモリオープン
+	//BME(大気圧計)共有メモリオープン
 	id_bme = com_shmem_open(DEF_BME_SHMEM_NAME, SHM_KIND_PLATFORM);
 	if(id_bme == DEF_COM_SHMEM_FALSE){
 		dprintf(WARN, "com_shmem_open error. name = %s\n", DEF_BME_SHMEM_NAME);
